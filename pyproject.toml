@@ -1,0 +1,27 @@
+[project]
+name = "data-tool-calling-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "RainLuvJin", email = "k8688324@163.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "openai>=3.31.0",
+    "pandas>=3.0.6",
+    "pydantic>=2.14.1",
+    "python-dotenv>=1.2.4",
+]
+
+[project.scripts]
+data-tool-calling-agent = "data_tool_calling_agent:main"
+
+[build-system]
+requires = ["uv_build>=0.13.0,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
