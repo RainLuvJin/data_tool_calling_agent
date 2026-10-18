@@ -1,132 +1,12 @@
 import json
-import os
-from pathlib import Path
-from functools import partial
+
 
 import pandas as pd
-from dotenv import load_dotenv
-from openai import OpenAI
 
-from data_tool_calling_agent.function_tools.csv_tool import (
-    inspect_dataset,
-    filter_jobs,
-    analyze_salary,
-)
-# 1. 读取项目根目录的 .env 文件
-# agent.py 位于 src/data_tool_calling_agent/ 下，
-# parents[2] 对应项目根目录。
-root = Path(__file__).resolve().parents[2]
-load_dotenv(root/".env")
+from .schemas import TOOLS
+from .registry import TOOL_FUNCTIONS
+from .config import client
 
-# 2. 创建 LLM API 客户端
-client = OpenAI(
-    api_key=os.environ["DEEPSEEK_API_KEY"],
-    base_url="https://api.deepseek.com",
-)
-
-# 3. 指定data_csv文件路径
-data_path = root/"data"/"jobs.csv"
-
-# 4. 程序启动时读取完整数据集
-df = pd.read_csv(data_path,encoding="utf-8")
-
-# 5. 工具注册表：Python 函数名 -> 实际执行函数
-TOOL_FUNCTIONS = {
-    "inspect_dataset": partial(inspect_dataset,df),
-    "filter_jobs": partial(filter_jobs,df),
-    "analyze_salary": partial(analyze_salary,df),
-}
-
-# 6. 向 LLM 描述工具的用途和参数。
-# 这是 JSON Schema，不是函数本身。
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "inspect_dataset",
-            "description": (
-                "查看岗位数据集的列名、前几行或随机样本。"
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "action": {
-                        "type": "string",
-                        "enum": ["columns", "head", "random"],
-                        "description": "查看方式",
-                    },
-                    "n": {
-                        "type": "integer",
-                        "description": "返回的行数，默认 5",
-                    },
-                },
-                "required": [],
-                "additionalProperties": False,
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "filter_jobs",
-            "description": (
-                "按地点、技能、工作类型和最低年薪筛选岗位。"
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "location": {
-                        "type": ["string", "null"],
-                        "description": "地点关键词，例如 Tokyo",
-                    },
-                    "skill": {
-                        "type": ["string", "null"],
-                        "description": "技能关键词，例如 Python",
-                    },
-                    "employment_type": {
-                        "type": ["string", "null"],
-                        "description": "工作类型关键词",
-                    },
-                    "min_salary_usd": {
-                        "type": ["number", "null"],
-                        "description": "最低年薪下限，美元",
-                    },
-                },
-                "required": [
-                    "location",
-                    "skill",
-                    "employment_type",
-                    "min_salary_usd",
-                ],
-                "additionalProperties": False,
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "analyze_salary",
-            "description": (
-                "统计年薪的有效记录数、平均值、中位数、"
-                "最低值和最高值，可按字段分组。"
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "group_by": {
-                        "type": ["string", "null"],
-                        "description": (
-                            "分组字段，例如 employment_type；"
-                            "不分组时传 null"
-                        ),
-                    },
-                },
-                "required": ["group_by"],
-                "additionalProperties": False,
-            },
-        },
-    },
-]
 
 
 # 7. 将 pandas 数据中的缺失值转换为 JSON null，
@@ -207,18 +87,3 @@ def ask_agent(question):
             )
 
     return "工具调用轮数达到上限，请缩小问题范围后重试。"
-
-
-# 10. 直接运行本文件时，进入命令行对话。
-if __name__ == "__main__":
-    while True:
-        question = input("\n你想查询什么？输入 quit 退出：")
-
-        if question.strip().lower() in {"quit", "exit"}:
-            break
-
-        try:
-            print("\nAgent：")
-            print(ask_agent(question))
-        except Exception as exc:
-            print(f"运行失败：{type(exc).__name__}: {exc}")
