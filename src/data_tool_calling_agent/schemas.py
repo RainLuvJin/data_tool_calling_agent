@@ -88,3 +88,5 @@ TOOLS = [
         },
     },
 ]
+
+# LangChain/LangGraph 可以根据 Pydantic 模型自动生成工具的 JSON Schema
