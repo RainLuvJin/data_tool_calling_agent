@@ -40,7 +40,9 @@ def ask_agent(question):
         {"role": "user", "content": question},
     ]
 
-    # 最多执行 5 轮模型请求，避免工具调用无限循环。
+    all_tool_calls = []
+
+    # 最多执行 20 轮模型请求，避免工具调用无限循环。
     for _ in range(20):
         response = client.chat.completions.create(
             model="deepseek-flash",
@@ -56,8 +58,10 @@ def ask_agent(question):
 
         # 如果模型没有请求工具，说明它已生成最终回答。
         if not message.tool_calls:
-            return message.content or "模型没有返回文本。"
+            return message.content, all_tool_calls or "模型没有返回文本。"
 
+        all_tool_calls.extend(message.tool_calls)
+        
         # 9. 执行模型请求的工具。
         for tool_call in message.tool_calls:
             name = tool_call.function.name
